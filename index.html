@@ -460,7 +460,7 @@
 
   let db = load();
   let currentKey = keyOf(new Date());
-  const todayKey = keyOf(new Date());
+  let todayKey = keyOf(new Date());
 
   // ── 날씨 버튼 ──
   const wWrap = $("#weather");
@@ -719,7 +719,7 @@
     if(w){ fillWriteView(); } else { renderBrowse(); }
     window.scrollTo(0,0);
   }
-  $("#tab-write").onclick=()=>{ currentKey=todayKey; switchTab("write"); };
+  $("#tab-write").onclick=()=>{ todayKey=keyOf(new Date()); currentKey=todayKey; switchTab("write"); };
   $("#tab-browse").onclick=()=>switchTab("browse");
 
   // ── 모달 ──
@@ -769,6 +769,29 @@
   // ── 리사이즈 ──
   let rT;
   window.addEventListener("resize",()=>{ clearTimeout(rT); rT=setTimeout(()=>{ if($("#view-write").style.display!=="none") fitCanvas(true); },200); });
+
+  // ── 자정 넘어가면 새 날로 ──
+  function isFormClean(){ return !selWeather && getItems().length===0 && smallPainter.blank(); }
+  function checkDayRollover(){
+    const nowKey=keyOf(new Date());
+    if(nowKey===todayKey) return;            // 같은 날이면 아무것도 안 함
+    const wasToday=(currentKey===todayKey);
+    todayKey=nowKey;
+    if($("#view-write").style.display==="none") return;   // 모아보기 중이면 그대로
+    if(!wasToday) return;                                  // 지난 일기 편집 중이면 건드리지 않음
+    if(isFormClean()){
+      currentKey=todayKey; fillWriteView();               // 빈 화면이면 조용히 새 날로
+    } else {
+      // 작성 중이면 내용 보존 — 안내만, 저장은 어제 날짜로
+      $("#edit-chip").classList.add("show");
+      $("#btn-save").textContent="이 날 일기 저장";
+      $("#saved-note").textContent="";
+      toast("자정이 지났어요 · 저장 후 ‘오늘 쓰기’를 눌러요");
+    }
+  }
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) checkDayRollover(); });
+  window.addEventListener("focus",checkDayRollover);
+  setInterval(()=>{ if(!document.hidden) checkDayRollover(); },60000);
 
   // ── 시작 ──
   fillWriteView();
