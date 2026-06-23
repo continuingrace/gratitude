@@ -114,7 +114,7 @@
   }
   .draw-label.hide{opacity:0;}
   canvas#pad{
-    display:block;width:100%;height:208px;border-radius:14px;
+    display:block;width:100%;aspect-ratio:1/1;height:auto;border-radius:14px;
     background:
       linear-gradient(var(--paper-2),var(--paper-2)) ,
       repeating-linear-gradient(#fff 0 27px,#F6F2EA 27px 28px);
@@ -131,6 +131,37 @@
   .tool:active{transform:scale(.92);}
   .tool.on{background:var(--ink);color:var(--bg);}
   .tool svg{width:18px;height:18px;}
+
+  /* 크게 그리기 (전체화면) */
+  canvas#pad{touch-action:none;}
+  .draw-editor{
+    position:fixed;inset:0;z-index:50;background:var(--bg);display:none;flex-direction:column;
+    padding:
+      calc(env(safe-area-inset-top) + 6px)
+      max(env(safe-area-inset-right),14px)
+      calc(env(safe-area-inset-bottom) + 12px)
+      max(env(safe-area-inset-left),14px);
+  }
+  .draw-editor.show{display:flex;}
+  .de-top{display:flex;align-items:center;justify-content:space-between;padding:6px 4px 12px;}
+  .de-top .de-title{font-size:15px;font-weight:600;}
+  .de-top button{font-size:15.5px;font-weight:600;padding:8px 8px;color:var(--ink-soft);}
+  .de-top #de-done{color:var(--brick);}
+  .de-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;}
+  canvas#bigpad{
+    display:block;border-radius:16px;
+    background:
+      linear-gradient(var(--paper),var(--paper)),
+      repeating-linear-gradient(#fff 0 32px,#F6F2EA 32px 33px);
+    background-blend-mode:multiply;
+    box-shadow:inset 0 0 0 1px var(--line);touch-action:none;
+  }
+  .de-tools{display:flex;align-items:center;gap:8px;justify-content:center;padding-top:13px;flex-wrap:wrap;}
+  .de-seg{display:flex;background:var(--paper-2);border-radius:12px;padding:3px;gap:3px;}
+  .de-seg button{min-width:44px;height:36px;padding:0 6px;border-radius:9px;display:grid;place-items:center;color:var(--ink-soft);transition:background .15s,color .15s;}
+  .de-seg button.on{background:#fff;box-shadow:0 1px 5px rgba(58,53,45,.12);color:var(--ink);}
+  .de-seg button svg{width:18px;height:18px;}
+  .de-dot{border-radius:50%;background:currentColor;display:block;}
 
   /* 감사 세 줄 */
   .grat{padding:18px 20px 4px;}
@@ -306,6 +337,7 @@
           <button class="tool" id="t-erase" aria-label="지우개" title="지우개"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l5 5h6l8-8-8-8-11 11z"/></svg></button>
           <button class="tool" id="t-undo" aria-label="되돌리기" title="되돌리기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
           <button class="tool" id="t-clear" aria-label="비우기" title="비우기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+          <button class="tool" id="t-expand" aria-label="크게 그리기" title="크게 그리기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-8 8M3 21l8-8"/></svg></button>
         </div>
       </div>
 
@@ -378,6 +410,31 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- 크게 그리기 -->
+<div class="draw-editor" id="draw-editor">
+  <div class="de-top">
+    <button id="de-cancel">취소</button>
+    <span class="de-title">크게 그리기</span>
+    <button id="de-done">완료</button>
+  </div>
+  <div class="de-stage"><canvas id="bigpad"></canvas></div>
+  <div class="de-tools">
+    <div class="de-seg" id="seg-size">
+      <button data-w="1.7" aria-label="가는 펜"><span class="de-dot" style="width:5px;height:5px"></span></button>
+      <button class="on" data-w="2.9" aria-label="보통 펜"><span class="de-dot" style="width:9px;height:9px"></span></button>
+      <button data-w="4.6" aria-label="굵은 펜"><span class="de-dot" style="width:13px;height:13px"></span></button>
+    </div>
+    <div class="de-seg">
+      <button id="be-pen" class="on" aria-label="펜"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+      <button id="be-erase" aria-label="지우개"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l5 5h6l8-8-8-8-11 11z"/></svg></button>
+    </div>
+    <div class="de-seg">
+      <button id="be-undo" aria-label="되돌리기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
+      <button id="be-clear" aria-label="비우기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -461,54 +518,87 @@
   function getItems(){ return $$("#g-lines .g-input").map(t=>t.value.trim()).filter(Boolean); }
   function setItems(arr){ renderRows(arr); }
 
-  // ── 그림 캔버스 ──
-  const pad = $("#pad");
-  const ctx = pad.getContext("2d");
-  let DPR = Math.min(window.devicePixelRatio||1, 2.5);
-  let drawing=false, mode="pen", last=null, history=[];
-  const PEN="#5A554C", PEN_W=2.4, ERASE_W=20;
+  // ── 그림: 작은 미리보기 + 크게 그리기 (공유 페인터) ──
+  const PEN="#5A554C", ERASE_W=24;
+  function createPainter(cv){
+    const ctx=cv.getContext("2d");
+    const dpr=Math.min(window.devicePixelRatio||1,3);
+    let drawing=false, history=[], pts=[], penW=2.9, mode="pen", changed=null;
+    function blank(){ try{ const d=ctx.getImageData(0,0,cv.width,cv.height).data; for(let i=3;i<d.length;i+=4){ if(d[i]>8) return false; } return true; }catch(e){ return false; } }
+    function fit(keep){
+      const data = keep && !blank() ? cv.toDataURL() : null;
+      const r=cv.getBoundingClientRect();
+      cv.width=Math.max(1,Math.round(r.width*dpr)); cv.height=Math.max(1,Math.round(r.height*dpr));
+      ctx.setTransform(dpr,0,0,dpr,0,0); ctx.lineCap="round"; ctx.lineJoin="round";
+      if(data){ const im=new Image(); im.onload=()=>ctx.drawImage(im,0,0,r.width,r.height); im.src=data; }
+    }
+    function pt(e){ const r=cv.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+    function snap(){ try{ history.push(cv.toDataURL()); if(history.length>20) history.shift(); }catch(e){} }
+    function op(){ ctx.globalCompositeOperation = mode==="erase"?"destination-out":"source-over"; }
+    function dot(p){ op(); ctx.fillStyle=PEN; ctx.beginPath(); ctx.arc(p.x,p.y,(mode==="erase"?ERASE_W:penW)/2,0,7); ctx.fill(); }
+    function lineTo(p){ op(); ctx.strokeStyle=PEN; ctx.lineWidth=mode==="erase"?ERASE_W:penW; const a=pts[pts.length-2]; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+    function seg(){ op(); ctx.strokeStyle=PEN; ctx.lineWidth=mode==="erase"?ERASE_W:penW;
+      const n=pts.length, a=pts[n-3], b=pts[n-2], c=pts[n-1];
+      const m1={x:(a.x+b.x)/2,y:(a.y+b.y)/2}, m2={x:(b.x+c.x)/2,y:(b.y+c.y)/2};
+      ctx.beginPath(); ctx.moveTo(m1.x,m1.y); ctx.quadraticCurveTo(b.x,b.y,m2.x,m2.y); ctx.stroke();
+    }
+    function down(e){ e.preventDefault(); drawing=true; snap(); pts=[pt(e)]; dot(pts[0]); if(changed)changed(); }
+    function move(e){ if(!drawing)return; e.preventDefault(); const p=pt(e); pts.push(p); if(pts.length<3) lineTo(p); else seg(); }
+    function end(){ drawing=false; pts=[]; }
+    cv.addEventListener("pointerdown",down); cv.addEventListener("pointermove",move);
+    cv.addEventListener("pointerup",end); cv.addEventListener("pointercancel",end);
+    function clear(){ const r=cv.getBoundingClientRect(); ctx.globalCompositeOperation="source-over"; ctx.clearRect(0,0,r.width,r.height); history=[]; }
+    function undo(){ if(!history.length)return; const u=history.pop(); const im=new Image(); im.onload=()=>{ const r=cv.getBoundingClientRect(); ctx.globalCompositeOperation="source-over"; ctx.clearRect(0,0,r.width,r.height); ctx.drawImage(im,0,0,r.width,r.height); }; im.src=u; }
+    function loadUrl(url){ clear(); if(url){ const im=new Image(); im.onload=()=>{ const r=cv.getBoundingClientRect(); const s=Math.min(r.width/im.width, r.height/im.height); const w=im.width*s, h=im.height*s; ctx.drawImage(im,(r.width-w)/2,(r.height-h)/2,w,h); }; im.src=url; } }
+    function toUrl(targetW){ if(blank()) return null; const r=cv.getBoundingClientRect(); const W=targetW||1000, H=Math.max(1,Math.round(W*r.height/r.width)); const off=document.createElement("canvas"); off.width=W; off.height=H; const o=off.getContext("2d"); o.drawImage(cv,0,0,W,H); return off.toDataURL("image/png"); }
+    return { fit, clear, undo, blank, loadUrl, toUrl,
+      setMode:m=>{mode=m;}, setWidth:w=>{penW=w;}, onChange:f=>{changed=f;} };
+  }
 
-  function fitCanvas(keepImg){
-    const img = keepImg ? pad.toDataURL() : null;
-    const r = pad.getBoundingClientRect();
-    pad.width = Math.round(r.width*DPR);
-    pad.height = Math.round(r.height*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    ctx.lineCap="round"; ctx.lineJoin="round";
-    if(img){ const im=new Image(); im.onload=()=>ctx.drawImage(im,0,0,r.width,r.height); im.src=img; }
-  }
-  function snapshot(){ try{ history.push(pad.toDataURL()); if(history.length>18) history.shift(); }catch(e){} }
-  function clearPad(){ const r=pad.getBoundingClientRect(); ctx.clearRect(0,0,r.width,r.height); $("#draw-label").classList.remove("hide"); }
-  function isBlank(){ // 픽셀이 거의 없으면 빈 그림
-    try{ const d=ctx.getImageData(0,0,pad.width,pad.height).data; for(let i=3;i<d.length;i+=4){ if(d[i]>8) return false; } return true; }catch(e){ return false; }
-  }
-  function loadDrawing(dataUrl){
-    clearPad(); history=[];
-    if(dataUrl){ const im=new Image(); im.onload=()=>{ const r=pad.getBoundingClientRect(); ctx.drawImage(im,0,0,r.width,r.height); }; im.src=dataUrl; $("#draw-label").classList.add("hide"); }
-  }
-  function exportDrawing(){
-    if(isBlank()) return null;
-    // 폭 560px 기준으로 축소 저장 (용량 절약)
-    const r=pad.getBoundingClientRect(); const W=560, H=Math.round(W*r.height/r.width);
-    const off=document.createElement("canvas"); off.width=W; off.height=H;
-    const o=off.getContext("2d"); o.fillStyle="#FFFFFF"; o.fillRect(0,0,W,H);
-    o.drawImage(pad,0,0,W,H);
-    return off.toDataURL("image/png");
-  }
-  function ptFrom(e){ const r=pad.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
-  function down(e){ e.preventDefault(); drawing=true; snapshot(); last=ptFrom(e); dot(last); $("#draw-label").classList.add("hide"); }
-  function move(e){ if(!drawing)return; e.preventDefault(); const p=ptFrom(e); stroke(last,p); last=p; }
-  function up(){ drawing=false; last=null; }
-  function dot(p){ ctx.globalCompositeOperation = mode==="erase"?"destination-out":"source-over"; ctx.beginPath(); ctx.fillStyle=PEN; ctx.arc(p.x,p.y,(mode==="erase"?ERASE_W:PEN_W)/2,0,7); ctx.fill(); }
-  function stroke(a,b){ ctx.globalCompositeOperation = mode==="erase"?"destination-out":"source-over"; ctx.strokeStyle=PEN; ctx.lineWidth = mode==="erase"?ERASE_W:PEN_W; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
-  pad.addEventListener("pointerdown",down); pad.addEventListener("pointermove",move);
-  window.addEventListener("pointerup",up); pad.addEventListener("pointercancel",up);
+  const smallPainter=createPainter($("#pad"));
+  const bigPainter=createPainter($("#bigpad"));
+  smallPainter.onChange(()=>$("#draw-label").classList.add("hide"));
 
+  // 작은 패드 도구
+  function setMode(m){ smallPainter.setMode(m); $("#t-pen").classList.toggle("on",m==="pen"); $("#t-erase").classList.toggle("on",m==="erase"); }
   $("#t-pen").onclick=()=>setMode("pen");
   $("#t-erase").onclick=()=>setMode("erase");
-  $("#t-undo").onclick=()=>{ if(!history.length)return; const u=history.pop(); const im=new Image(); im.onload=()=>{ const r=pad.getBoundingClientRect(); clearPad(); ctx.globalCompositeOperation="source-over"; ctx.drawImage(im,0,0,r.width,r.height); }; im.src=u; };
-  $("#t-clear").onclick=()=>{ snapshot(); clearPad(); };
-  function setMode(m){ mode=m; $("#t-pen").classList.toggle("on",m==="pen"); $("#t-erase").classList.toggle("on",m==="erase"); }
+  $("#t-undo").onclick=()=>smallPainter.undo();
+  $("#t-clear").onclick=()=>{ smallPainter.clear(); $("#draw-label").classList.remove("hide"); };
+  $("#t-expand").onclick=openEditor;
+
+  // 호환 헬퍼 (fillWriteView / 저장에서 사용)
+  function fitCanvas(keep){ smallPainter.fit(keep); }
+  function loadDrawing(url){ smallPainter.clear(); if(url){ smallPainter.loadUrl(url); $("#draw-label").classList.add("hide"); } else { $("#draw-label").classList.remove("hide"); } }
+  function exportDrawing(){ return smallPainter.toUrl(1000); }
+
+  // 크게 그리기 에디터
+  function openEditor(){
+    const ed=$("#draw-editor"); ed.classList.add("show"); document.body.style.overflow="hidden";
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      const st=$(".de-stage").getBoundingClientRect();
+      const bp=$("#bigpad"); bp.style.width=Math.round(st.width)+"px"; bp.style.height=Math.round(st.height)+"px";
+      bigPainter.fit(false);
+      bigPainter.loadUrl(smallPainter.toUrl(1300));
+      setBigMode("pen"); setBigWidth(2.9,1);
+    }));
+  }
+  function closeEditor(){ $("#draw-editor").classList.remove("show"); document.body.style.overflow=""; }
+  $("#de-cancel").onclick=closeEditor;
+  $("#de-done").onclick=()=>{
+    const url=bigPainter.toUrl(1300);
+    smallPainter.clear();
+    if(url){ smallPainter.loadUrl(url); $("#draw-label").classList.add("hide"); }
+    else { $("#draw-label").classList.remove("hide"); }
+    closeEditor();
+  };
+  function setBigMode(m){ bigPainter.setMode(m); $("#be-pen").classList.toggle("on",m==="pen"); $("#be-erase").classList.toggle("on",m==="erase"); }
+  function setBigWidth(w,idx){ bigPainter.setWidth(w); setBigMode("pen"); $$("#seg-size button").forEach((b,i)=>b.classList.toggle("on",i===idx)); }
+  $$("#seg-size button").forEach((b,i)=>{ b.onclick=()=>setBigWidth(parseFloat(b.dataset.w),i); });
+  $("#be-pen").onclick=()=>setBigMode("pen");
+  $("#be-erase").onclick=()=>setBigMode("erase");
+  $("#be-undo").onclick=()=>bigPainter.undo();
+  $("#be-clear").onclick=()=>bigPainter.clear();
 
   // ── 쓰기 뷰 채우기 ──
   function fillWriteView(){

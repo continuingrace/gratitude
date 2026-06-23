@@ -1,5 +1,5 @@
 // 오늘의 감사 — 오프라인 캐시
-const CACHE = "gratitude-v4";
+const CACHE = "gratitude-v5";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"
