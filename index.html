@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<title>오늘의 감사</title>
+
+<!-- PWA / iOS 홈화면 -->
+<meta name="theme-color" content="#F4F1EA" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="감사" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+<!-- Pretendard (한국 ISP 대비: 변수폰트 + 시스템 폰트 폴백) -->
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+
+<style>
+  :root{
+    --bg:#F4F1EA;          /* 따뜻한 아이보리 (종이) */
+    --paper:#FBFAF6;       /* 일기장 칸 */
+    --paper-2:#F0ECE2;     /* 살짝 눌린 면 */
+    --ink:#3A352D;         /* 연필 먹색 */
+    --ink-soft:#8A8175;    /* 흐린 글씨 */
+    --ink-faint:#B6AEA0;   /* 더 흐린 */
+    --line:#E5DFD3;        /* 노트 괘선 */
+    --line-strong:#D8D1C2;
+    --brick:#A8503C;       /* 무지 벽돌색 — 점 하나만큼만 */
+    --brick-soft:#F2E3DD;
+    --radius:18px;
+    --radius-sm:11px;
+    --shadow:0 1px 2px rgba(58,53,45,.04), 0 8px 24px rgba(58,53,45,.06);
+    --tap:#EFEAE0;
+    font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-size:16px;line-height:1.7;letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none;}
+  input,textarea{font-family:inherit;color:inherit;}
+
+  .app{
+    max-width:520px;margin:0 auto;min-height:100%;
+    display:flex;flex-direction:column;
+    padding:
+      calc(env(safe-area-inset-top) + 8px)
+      max(env(safe-area-inset-right),20px)
+      calc(env(safe-area-inset-bottom) + 84px)
+      max(env(safe-area-inset-left),20px);
+  }
+
+  /* ── 상단바 ── */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:10px 2px 18px;}
+  .brand{display:flex;align-items:baseline;gap:8px;}
+  .brand h1{font-size:19px;font-weight:700;letter-spacing:-.02em;}
+  .brand small{font-size:11px;color:var(--ink-faint);letter-spacing:.12em;text-transform:uppercase;font-weight:500;}
+  .icon-btn{
+    width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+    color:var(--ink-soft);transition:background .15s;
+  }
+  .icon-btn:active{background:var(--tap);}
+  .icon-btn svg{width:21px;height:21px;}
+
+  /* ── 지난 감사 (살며시) ── */
+  .echo{
+    display:none;align-items:flex-start;gap:10px;
+    padding:13px 15px;margin-bottom:16px;
+    background:var(--paper-2);border-radius:var(--radius-sm);
+    color:var(--ink-soft);font-size:13.5px;line-height:1.55;
+  }
+  .echo.show{display:flex;}
+  .echo b{display:block;font-size:11px;font-weight:600;color:var(--ink-faint);letter-spacing:.04em;margin-bottom:3px;}
+  .echo .e-leaf{font-size:14px;line-height:1.4;flex-shrink:0;opacity:.7;}
+
+  /* ── 일기 카드 ── */
+  .sheet{
+    background:var(--paper);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .sheet-head{padding:20px 20px 0;}
+  .date-row{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;}
+  .date{font-size:22px;font-weight:700;letter-spacing:-.02em;}
+  .dow{font-size:14px;color:var(--ink-soft);font-weight:500;}
+  .editing-chip{
+    display:none;margin-left:auto;font-size:11.5px;color:var(--brick);
+    background:var(--brick-soft);padding:3px 10px;border-radius:100px;font-weight:600;
+  }
+  .editing-chip.show{display:inline-block;}
+
+  /* 날씨 */
+  .weather{display:flex;gap:6px;margin-top:14px;}
+  .w{
+    flex:1;height:46px;border-radius:12px;background:var(--paper-2);
+    display:grid;place-items:center;font-size:21px;line-height:1;
+    transition:transform .12s, background .15s, box-shadow .15s;
+    filter:grayscale(.15);opacity:.62;
+  }
+  .w:active{transform:scale(.93);}
+  .w.on{background:#fff;opacity:1;filter:none;box-shadow:inset 0 0 0 1.5px var(--line-strong),0 2px 8px rgba(58,53,45,.07);}
+
+  /* 그림칸 */
+  .draw-wrap{position:relative;margin:16px 20px 0;}
+  .draw-label{
+    position:absolute;top:11px;left:13px;font-size:11.5px;color:var(--ink-faint);
+    letter-spacing:.03em;pointer-events:none;font-weight:500;z-index:1;transition:opacity .3s;
+  }
+  .draw-label.hide{opacity:0;}
+  canvas#pad{
+    display:block;width:100%;height:208px;border-radius:14px;
+    background:
+      linear-gradient(var(--paper-2),var(--paper-2)) ,
+      repeating-linear-gradient(#fff 0 27px,#F6F2EA 27px 28px);
+    background-blend-mode:multiply;
+    box-shadow:inset 0 0 0 1px var(--line);
+    touch-action:none;cursor:crosshair;
+  }
+  .draw-tools{display:flex;gap:8px;margin-top:10px;justify-content:flex-end;}
+  .tool{
+    width:42px;height:37px;border-radius:11px;color:var(--ink-soft);
+    background:var(--paper-2);display:grid;place-items:center;
+    transition:background .15s,color .15s,transform .1s;
+  }
+  .tool:active{transform:scale(.92);}
+  .tool.on{background:var(--ink);color:var(--bg);}
+  .tool svg{width:18px;height:18px;}
+
+  /* 감사 세 줄 */
+  .grat{padding:18px 20px 4px;}
+  .grat-title{font-size:13px;color:var(--ink-soft);font-weight:600;margin-bottom:10px;letter-spacing:.01em;}
+  .g-line{display:flex;align-items:flex-start;gap:11px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .g-line:last-child{border-bottom:none;}
+  .g-num{
+    flex-shrink:0;width:21px;height:21px;border-radius:50%;margin-top:3px;
+    display:grid;place-items:center;font-size:11px;font-weight:600;
+    color:var(--ink-faint);background:var(--paper-2);
+  }
+  .g-input{
+    flex:1;border:none;background:none;font-size:15.5px;line-height:1.55;resize:none;
+    outline:none;padding:2px 0;min-height:26px;overflow:hidden;
+  }
+  .g-input::placeholder{color:var(--ink-faint);}
+  .g-line.filled .g-num{background:var(--brick);color:#fff;}
+  .g-del{
+    flex-shrink:0;width:26px;height:26px;margin-top:1px;border-radius:50%;
+    display:none;place-items:center;color:var(--ink-faint);transition:background .15s;
+  }
+  .g-line.extra .g-del{display:grid;}
+  .g-del:active{background:var(--tap);}
+  .g-del svg{width:13px;height:13px;}
+  .g-add{
+    width:100%;margin-top:12px;padding:11px;border-radius:11px;
+    font-size:13.5px;font-weight:500;color:var(--ink-soft);background:var(--paper-2);
+    display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s,transform .1s;
+  }
+  .g-add:active{background:var(--tap);transform:scale(.99);}
+  .g-add svg{width:15px;height:15px;}
+
+  .save-row{padding:6px 20px 22px;}
+  .save{
+    width:100%;height:52px;border-radius:14px;background:var(--ink);color:var(--bg);
+    font-size:16px;font-weight:600;letter-spacing:.01em;transition:transform .12s,opacity .15s;
+  }
+  .save:active{transform:scale(.985);}
+  .save:disabled{opacity:.4;}
+
+  .saved-note{text-align:center;font-size:12.5px;color:var(--ink-faint);margin-top:11px;min-height:16px;transition:opacity .3s;}
+
+  /* ── 모아보기 ── */
+  #view-browse{display:none;}
+  .month-head{
+    display:flex;align-items:center;justify-content:space-between;
+    margin:2px 2px 16px;
+  }
+  .month-head h2{font-size:17px;font-weight:700;}
+  .count{font-size:12.5px;color:var(--ink-soft);}
+  .cards{display:flex;flex-direction:column;gap:14px;}
+  .card{
+    background:var(--paper);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:16px 17px;display:flex;gap:14px;transition:transform .12s;
+  }
+  .card:active{transform:scale(.99);}
+  .card-thumb{
+    width:74px;height:74px;border-radius:12px;flex-shrink:0;background:#fff;
+    box-shadow:inset 0 0 0 1px var(--line);object-fit:cover;
+  }
+  .card-thumb.empty{display:grid;place-items:center;color:var(--ink-faint);font-size:11px;background:var(--paper-2);box-shadow:none;}
+  .card-body{flex:1;min-width:0;}
+  .card-date{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+  .card-date .d{font-size:15px;font-weight:700;}
+  .card-date .w-glyph{font-size:14px;}
+  .card-items{font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
+  .card-items div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-items .dot{color:var(--ink-faint);margin-right:5px;}
+
+  .empty-state{text-align:center;padding:64px 30px;color:var(--ink-faint);}
+  .empty-state .ring{font-size:40px;opacity:.45;margin-bottom:14px;}
+  .empty-state p{font-size:14px;line-height:1.7;}
+
+  /* ── 하단 탭 ── */
+  .tabbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    background:rgba(244,241,234,.86);backdrop-filter:saturate(180%) blur(14px);
+    -webkit-backdrop-filter:saturate(180%) blur(14px);
+    border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom);
+    display:flex;justify-content:center;gap:8px;
+  }
+  .tab{
+    flex:1;max-width:200px;padding:11px 0 12px;display:flex;flex-direction:column;
+    align-items:center;gap:3px;color:var(--ink-faint);font-size:11px;font-weight:500;transition:color .15s;
+  }
+  .tab svg{width:23px;height:23px;}
+  .tab.on{color:var(--ink);}
+
+  /* ── 시트(설정/상세) ── */
+  .scrim{
+    position:fixed;inset:0;z-index:40;background:rgba(40,36,30,.32);
+    opacity:0;pointer-events:none;transition:opacity .25s;
+  }
+  .scrim.show{opacity:1;pointer-events:auto;}
+  .modal{
+    position:fixed;left:0;right:0;bottom:0;z-index:41;
+    background:var(--bg);border-radius:22px 22px 0 0;
+    transform:translateY(100%);transition:transform .3s cubic-bezier(.22,1,.36,1);
+    padding:10px 22px calc(env(safe-area-inset-bottom) + 26px);
+    max-width:520px;margin:0 auto;max-height:86vh;overflow-y:auto;
+  }
+  .modal.show{transform:translateY(0);}
+  .grip{width:38px;height:5px;border-radius:3px;background:var(--line-strong);margin:6px auto 16px;}
+  .modal h3{font-size:18px;font-weight:700;margin-bottom:4px;}
+  .modal .sub{font-size:13px;color:var(--ink-soft);margin-bottom:20px;line-height:1.6;}
+  .menu-item{
+    width:100%;text-align:left;padding:16px 16px;border-radius:14px;background:var(--paper);
+    margin-bottom:10px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);
+    transition:transform .1s;
+  }
+  .menu-item:active{transform:scale(.99);}
+  .menu-item .mi-ico{width:38px;height:38px;border-radius:11px;background:var(--paper-2);display:grid;place-items:center;flex-shrink:0;color:var(--ink-soft);}
+  .menu-item .mi-ico svg{width:20px;height:20px;}
+  .menu-item .mi-t{display:block;font-size:15px;font-weight:600;}
+  .menu-item .mi-d{display:block;font-size:12.5px;color:var(--ink-soft);margin-top:2px;line-height:1.45;}
+  .menu-item.danger .mi-t{color:var(--brick);}
+
+  /* 상세보기 */
+  .detail-img{width:100%;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1px var(--line);margin-bottom:16px;display:block;}
+  .detail-grat .dg{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15.5px;}
+  .detail-grat .dg:last-child{border:none;}
+  .detail-grat .dg span{color:var(--brick);font-weight:600;}
+  .detail-actions{display:flex;gap:10px;margin-top:20px;}
+  .detail-actions button{flex:1;height:48px;border-radius:13px;font-size:14.5px;font-weight:600;}
+  .btn-edit{background:var(--ink);color:var(--bg);}
+  .btn-del{background:var(--paper);color:var(--brick);box-shadow:inset 0 0 0 1px var(--line-strong);}
+
+  .toast{
+    position:fixed;left:50%;bottom:104px;transform:translate(-50%,18px);
+    background:var(--ink);color:var(--bg);font-size:13.5px;font-weight:500;
+    padding:11px 20px;border-radius:100px;z-index:60;opacity:0;pointer-events:none;
+    transition:opacity .25s, transform .25s;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 상단 -->
+  <header class="top">
+    <div class="brand"><h1>오늘의 감사</h1><small>gratitude</small></div>
+    <button class="icon-btn" id="btn-menu" aria-label="설정">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg>
+    </button>
+  </header>
+
+  <!-- ===== 오늘 쓰기 ===== -->
+  <main id="view-write">
+    <div class="echo" id="echo">
+      <span class="e-leaf">🍃</span>
+      <div><b id="echo-when">지난 감사</b><span id="echo-text"></span></div>
+    </div>
+
+    <section class="sheet">
+      <div class="sheet-head">
+        <div class="date-row">
+          <span class="date" id="d-date">6월 23일</span>
+          <span class="dow" id="d-dow">화요일</span>
+          <span class="editing-chip" id="edit-chip">지난 일기 편집</span>
+        </div>
+        <div class="weather" id="weather"></div>
+      </div>
+
+      <div class="draw-wrap">
+        <span class="draw-label" id="draw-label">오늘의 한 장면</span>
+        <canvas id="pad"></canvas>
+        <div class="draw-tools">
+          <button class="tool on" id="t-pen" aria-label="그리기" title="그리기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+          <button class="tool" id="t-erase" aria-label="지우개" title="지우개"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l5 5h6l8-8-8-8-11 11z"/></svg></button>
+          <button class="tool" id="t-undo" aria-label="되돌리기" title="되돌리기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
+          <button class="tool" id="t-clear" aria-label="비우기" title="비우기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+        </div>
+      </div>
+
+      <div class="grat">
+        <div class="grat-title">오늘 감사한 것</div>
+        <div id="g-lines"></div>
+        <button class="g-add" id="g-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>한 줄 더하기</button>
+      </div>
+
+      <div class="save-row">
+        <button class="save" id="btn-save">오늘 일기 저장</button>
+        <div class="saved-note" id="saved-note"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== 모아보기 ===== -->
+  <main id="view-browse">
+    <div class="month-head">
+      <h2 id="browse-title">지나온 감사</h2>
+      <span class="count" id="browse-count"></span>
+    </div>
+    <div class="cards" id="cards"></div>
+  </main>
+</div>
+
+<!-- 하단 탭 -->
+<nav class="tabbar">
+  <button class="tab on" id="tab-write">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+    오늘 쓰기
+  </button>
+  <button class="tab" id="tab-browse">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2.5"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>
+    모아보기
+  </button>
+</nav>
+
+<!-- 설정 시트 -->
+<div class="scrim" id="scrim"></div>
+<div class="modal" id="modal-menu">
+  <div class="grip"></div>
+  <h3>보관함</h3>
+  <p class="sub">이 일기는 이 기기 안에만 저장돼요. 가끔 백업해두면 안심이에요.</p>
+  <button class="menu-item" id="mi-export">
+    <span class="mi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+    <span><span class="mi-t">백업 내보내기</span><span class="mi-d" id="exp-d">전체 일기를 파일 하나로 저장</span></span>
+  </button>
+  <button class="menu-item" id="mi-import">
+    <span class="mi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M8 12l4 4 4-4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+    <span><span class="mi-t">복구 불러오기</span><span class="mi-d">백업 파일에서 되살리기</span></span>
+  </button>
+  <input type="file" id="file-import" accept="application/json,.json" hidden />
+</div>
+
+<!-- 상세 시트 -->
+<div class="modal" id="modal-detail">
+  <div class="grip"></div>
+  <div class="date-row" style="margin-bottom:16px;">
+    <span class="date" id="det-date"></span>
+    <span class="dow" id="det-dow"></span>
+    <span class="w-glyph" id="det-weather" style="margin-left:6px;font-size:18px;"></span>
+  </div>
+  <img class="detail-img" id="det-img" alt="그림" />
+  <div class="detail-grat" id="det-grat"></div>
+  <div class="detail-actions">
+    <button class="btn-del" id="det-del">삭제</button>
+    <button class="btn-edit" id="det-edit">수정하기</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  const STORE = "gratitude-journal-v1";
+  const WEATHERS = [
+    {k:"sun",  e:"☀️", n:"맑음"},
+    {k:"cloud",e:"⛅", n:"구름조금"},
+    {k:"gray", e:"☁️", n:"흐림"},
+    {k:"rain", e:"🌧️", n:"비"},
+    {k:"snow", e:"❄️", n:"눈"},
+  ];
+  const DOW = ["일요일","월요일","화요일","수요일","목요일","금요일","토요일"];
+  const DOW_S = ["일","월","화","수","목","금","토"];
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+
+  // ── 저장소 ──
+  function load(){ try{ return JSON.parse(localStorage.getItem(STORE)) || {}; }catch(e){ return {}; } }
+  function save(db){ try{ localStorage.setItem(STORE, JSON.stringify(db)); return true; }catch(e){ alert("저장 공간이 가득 찼어요. 백업 후 정리해 주세요."); return false; } }
+  function keyOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function parseKey(k){ const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d); }
+
+  let db = load();
+  let currentKey = keyOf(new Date());
+  const todayKey = keyOf(new Date());
+
+  // ── 날씨 버튼 ──
+  const wWrap = $("#weather");
+  let selWeather = null;
+  WEATHERS.forEach(w=>{
+    const b=document.createElement("button");
+    b.className="w"; b.textContent=w.e; b.dataset.k=w.k; b.setAttribute("aria-label",w.n);
+    b.onclick=()=>{ selWeather = (selWeather===w.k)?null:w.k; renderWeather(); };
+    wWrap.appendChild(b);
+  });
+  function renderWeather(){ $$("#weather .w").forEach(el=>el.classList.toggle("on", el.dataset.k===selWeather)); }
+  function weatherEmoji(k){ const w=WEATHERS.find(x=>x.k===k); return w?w.e:""; }
+
+  // ── 감사 세 줄 ──
+  const gWrap = $("#g-lines");
+  const CORE_ROWS = 3;   // 기본 줄 수
+  const MAX_ROWS = 15;
+  function autoGrow(ta){ ta.style.height="auto"; ta.style.height=ta.scrollHeight+"px"; }
+  function makeRow(value, extra){
+    const row=document.createElement("div"); row.className="g-line"+(extra?" extra":"");
+    row.innerHTML='<span class="g-num"></span>'+
+      '<textarea class="g-input" rows="1" maxlength="200"></textarea>'+
+      '<button class="g-del" aria-label="이 줄 지우기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+    const ta=row.querySelector("textarea");
+    ta.value=value||"";
+    ta.addEventListener("input",()=>{ autoGrow(ta); row.classList.toggle("filled", ta.value.trim().length>0); updateSaveBtn(); });
+    row.querySelector(".g-del").addEventListener("click",()=>{ row.remove(); renumber(); updateSaveBtn(); });
+    gWrap.appendChild(row);
+    autoGrow(ta);
+    row.classList.toggle("filled", (value||"").trim().length>0);
+    return row;
+  }
+  function renumber(){
+    const rows=$$("#g-lines .g-line");
+    rows.forEach((r,i)=>{
+      r.querySelector(".g-num").textContent=i+1;
+      r.classList.toggle("extra", i>=CORE_ROWS);              // 4번째부터 삭제 가능
+      r.querySelector(".g-input").placeholder = i===0 ? "작은 것이라도 좋아요" : "";
+    });
+    $("#g-add").style.display = rows.length>=MAX_ROWS ? "none" : "flex";
+  }
+  function renderRows(values){
+    gWrap.innerHTML="";
+    const vals=(values||[]).filter(x=>x&&x.trim());
+    const count=Math.max(CORE_ROWS, vals.length);
+    for(let i=0;i<count;i++) makeRow(vals[i], i>=CORE_ROWS);
+    renumber();
+  }
+  $("#g-add").addEventListener("click",()=>{
+    if($$("#g-lines .g-line").length>=MAX_ROWS) return;
+    const row=makeRow("", true); renumber();
+    const ta=row.querySelector("textarea"); ta.focus();
+    row.scrollIntoView({block:"nearest",behavior:"smooth"});
+  });
+  function getItems(){ return $$("#g-lines .g-input").map(t=>t.value.trim()).filter(Boolean); }
+  function setItems(arr){ renderRows(arr); }
+
+  // ── 그림 캔버스 ──
+  const pad = $("#pad");
+  const ctx = pad.getContext("2d");
+  let DPR = Math.min(window.devicePixelRatio||1, 2.5);
+  let drawing=false, mode="pen", last=null, history=[];
+  const PEN="#5A554C", PEN_W=2.4, ERASE_W=20;
+
+  function fitCanvas(keepImg){
+    const img = keepImg ? pad.toDataURL() : null;
+    const r = pad.getBoundingClientRect();
+    pad.width = Math.round(r.width*DPR);
+    pad.height = Math.round(r.height*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.lineCap="round"; ctx.lineJoin="round";
+    if(img){ const im=new Image(); im.onload=()=>ctx.drawImage(im,0,0,r.width,r.height); im.src=img; }
+  }
+  function snapshot(){ try{ history.push(pad.toDataURL()); if(history.length>18) history.shift(); }catch(e){} }
+  function clearPad(){ const r=pad.getBoundingClientRect(); ctx.clearRect(0,0,r.width,r.height); $("#draw-label").classList.remove("hide"); }
+  function isBlank(){ // 픽셀이 거의 없으면 빈 그림
+    try{ const d=ctx.getImageData(0,0,pad.width,pad.height).data; for(let i=3;i<d.length;i+=4){ if(d[i]>8) return false; } return true; }catch(e){ return false; }
+  }
+  function loadDrawing(dataUrl){
+    clearPad(); history=[];
+    if(dataUrl){ const im=new Image(); im.onload=()=>{ const r=pad.getBoundingClientRect(); ctx.drawImage(im,0,0,r.width,r.height); }; im.src=dataUrl; $("#draw-label").classList.add("hide"); }
+  }
+  function exportDrawing(){
+    if(isBlank()) return null;
+    // 폭 560px 기준으로 축소 저장 (용량 절약)
+    const r=pad.getBoundingClientRect(); const W=560, H=Math.round(W*r.height/r.width);
+    const off=document.createElement("canvas"); off.width=W; off.height=H;
+    const o=off.getContext("2d"); o.fillStyle="#FFFFFF"; o.fillRect(0,0,W,H);
+    o.drawImage(pad,0,0,W,H);
+    return off.toDataURL("image/png");
+  }
+  function ptFrom(e){ const r=pad.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+  function down(e){ e.preventDefault(); drawing=true; snapshot(); last=ptFrom(e); dot(last); $("#draw-label").classList.add("hide"); }
+  function move(e){ if(!drawing)return; e.preventDefault(); const p=ptFrom(e); stroke(last,p); last=p; }
+  function up(){ drawing=false; last=null; }
+  function dot(p){ ctx.globalCompositeOperation = mode==="erase"?"destination-out":"source-over"; ctx.beginPath(); ctx.fillStyle=PEN; ctx.arc(p.x,p.y,(mode==="erase"?ERASE_W:PEN_W)/2,0,7); ctx.fill(); }
+  function stroke(a,b){ ctx.globalCompositeOperation = mode==="erase"?"destination-out":"source-over"; ctx.strokeStyle=PEN; ctx.lineWidth = mode==="erase"?ERASE_W:PEN_W; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+  pad.addEventListener("pointerdown",down); pad.addEventListener("pointermove",move);
+  window.addEventListener("pointerup",up); pad.addEventListener("pointercancel",up);
+
+  $("#t-pen").onclick=()=>setMode("pen");
+  $("#t-erase").onclick=()=>setMode("erase");
+  $("#t-undo").onclick=()=>{ if(!history.length)return; const u=history.pop(); const im=new Image(); im.onload=()=>{ const r=pad.getBoundingClientRect(); clearPad(); ctx.globalCompositeOperation="source-over"; ctx.drawImage(im,0,0,r.width,r.height); }; im.src=u; };
+  $("#t-clear").onclick=()=>{ snapshot(); clearPad(); };
+  function setMode(m){ mode=m; $("#t-pen").classList.toggle("on",m==="pen"); $("#t-erase").classList.toggle("on",m==="erase"); }
+
+  // ── 쓰기 뷰 채우기 ──
+  function fillWriteView(){
+    const d=parseKey(currentKey);
+    $("#d-date").textContent=(d.getMonth()+1)+"월 "+d.getDate()+"일";
+    $("#d-dow").textContent=DOW[d.getDay()];
+    const isToday = currentKey===todayKey;
+    $("#edit-chip").classList.toggle("show", !isToday);
+    $("#draw-label").style.display = "block";
+    const ent = db[currentKey];
+    selWeather = ent?ent.weather:null; renderWeather();
+    setItems(ent?ent.items:[]);
+    setMode("pen");
+    requestAnimationFrame(()=>{ fitCanvas(false); loadDrawing(ent?ent.drawing:null); });
+    renderEcho();
+    updateSaveBtn();
+    $("#saved-note").textContent="";
+  }
+  function updateSaveBtn(){
+    const has = selWeather || getItems().some(x=>x) ;
+    $("#btn-save").textContent = (currentKey===todayKey?"오늘":"이 날") + " 일기 저장";
+  }
+  gWrap.addEventListener("input",updateSaveBtn);
+
+  // ── 지난 감사 살며시 ──
+  function renderEcho(){
+    const keys=Object.keys(db).filter(k=>k!==currentKey);
+    const pool=[];
+    keys.forEach(k=>{ (db[k].items||[]).forEach(it=>{ if(it&&it.trim()) pool.push({k,it}); }); });
+    const echo=$("#echo");
+    if(!pool.length){ echo.classList.remove("show"); return; }
+    const pick=pool[Math.floor(Math.random()*pool.length)];
+    const d=parseKey(pick.k); const today=new Date();
+    let when;
+    const days=Math.round((new Date(todayKey)-new Date(pick.k))/86400000);
+    if(days>=360) when="작년 어느 날"; else if(days>=28) when=(d.getMonth()+1)+"월의 감사"; else when="지난 어느 날";
+    $("#echo-when").textContent=when;
+    $("#echo-text").textContent=pick.it;
+    echo.classList.add("show");
+  }
+
+  // ── 저장 ──
+  $("#btn-save").onclick=()=>{
+    const items=getItems();
+    const drawing=exportDrawing();
+    if(!selWeather && !items.length && !drawing){ toast("오늘 감사 한 줄만 적어볼까요"); return; }
+    db[currentKey]={
+      key:currentKey, weather:selWeather, drawing, items,
+      updatedAt:Date.now(),
+      createdAt:(db[currentKey]&&db[currentKey].createdAt)||Date.now()
+    };
+    if(save(db)){
+      $("#saved-note").textContent="저장됐어요 · "+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
+      toast("오늘의 감사를 담았어요");
+    }
+  };
+
+  // ── 모아보기 ──
+  function renderBrowse(){
+    const keys=Object.keys(db).sort().reverse();
+    $("#browse-count").textContent = keys.length?keys.length+"일의 기록":"";
+    const wrap=$("#cards");
+    if(!keys.length){
+      wrap.innerHTML=`<div class="empty-state"><div class="ring">◯</div><p>아직 빈 일기장이에요.<br>오늘의 감사부터 천천히.</p></div>`;
+      return;
+    }
+    wrap.innerHTML="";
+    let lastMonth="";
+    keys.forEach(k=>{
+      const e=db[k]; const d=parseKey(k);
+      const mlabel=d.getFullYear()+"년 "+(d.getMonth()+1)+"월";
+      if(mlabel!==lastMonth){
+        lastMonth=mlabel;
+        const h=document.createElement("div"); h.style.cssText="font-size:12.5px;color:var(--ink-faint);font-weight:600;margin:8px 2px 2px;letter-spacing:.02em;";
+        h.textContent=mlabel; wrap.appendChild(h);
+      }
+      const items=(e.items||[]).filter(x=>x&&x.trim());
+      const card=document.createElement("button"); card.className="card";
+      const thumb = e.drawing
+        ? `<img class="card-thumb" src="${e.drawing}" alt="">`
+        : `<div class="card-thumb empty">그림 없음</div>`;
+      card.innerHTML=`${thumb}<div class="card-body">
+        <div class="card-date"><span class="d">${d.getDate()}일 ${DOW_S[d.getDay()]}</span><span class="w-glyph">${weatherEmoji(e.weather)}</span></div>
+        <div class="card-items">${ items.length? items.slice(0,3).map(x=>`<div><span class="dot">·</span>${esc(x)}</div>`).join("") + (items.length>3?`<div style="color:var(--ink-faint)">+${items.length-3}개 더</div>`:"") : '<div style="color:var(--ink-faint)">그림으로 남긴 하루</div>'}</div>
+      </div>`;
+      card.onclick=()=>openDetail(k);
+      wrap.appendChild(card);
+    });
+  }
+  function esc(s){ return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  // ── 상세 ──
+  let detailKey=null;
+  function openDetail(k){
+    detailKey=k; const e=db[k]; const d=parseKey(k);
+    $("#det-date").textContent=(d.getMonth()+1)+"월 "+d.getDate()+"일";
+    $("#det-dow").textContent=DOW[d.getDay()];
+    $("#det-weather").textContent=weatherEmoji(e.weather);
+    const img=$("#det-img");
+    if(e.drawing){ img.src=e.drawing; img.style.display="block"; } else { img.style.display="none"; }
+    const items=(e.items||[]).filter(x=>x&&x.trim());
+    $("#det-grat").innerHTML = items.length? items.map((x,i)=>`<div class="dg"><span>${i+1}</span>${esc(x)}</div>`).join("") : `<div class="dg" style="color:var(--ink-faint)">적어둔 글은 없어요.</div>`;
+    openModal("#modal-detail");
+  }
+  $("#det-edit").onclick=()=>{ currentKey=detailKey; closeModal(); switchTab("write"); fillWriteView(); };
+  $("#det-del").onclick=()=>{
+    if(!confirm("이 날의 일기를 삭제할까요? 되돌릴 수 없어요.")) return;
+    delete db[detailKey]; save(db); closeModal(); renderBrowse(); toast("삭제했어요");
+  };
+
+  // ── 탭 ──
+  function switchTab(which){
+    const w=which==="write";
+    $("#view-write").style.display=w?"block":"none";
+    $("#view-browse").style.display=w?"none":"block";
+    $("#tab-write").classList.toggle("on",w);
+    $("#tab-browse").classList.toggle("on",!w);
+    if(w){ fillWriteView(); } else { renderBrowse(); }
+    window.scrollTo(0,0);
+  }
+  $("#tab-write").onclick=()=>{ currentKey=todayKey; switchTab("write"); };
+  $("#tab-browse").onclick=()=>switchTab("browse");
+
+  // ── 모달 ──
+  function openModal(sel){ $("#scrim").classList.add("show"); $(sel).classList.add("show"); }
+  function closeModal(){ $("#scrim").classList.remove("show"); $$(".modal").forEach(m=>m.classList.remove("show")); }
+  $("#scrim").onclick=closeModal;
+  $("#btn-menu").onclick=()=>{ refreshExportLabel(); openModal("#modal-menu"); };
+
+  // ── 백업/복구 ──
+  function refreshExportLabel(){ const n=Object.keys(db).length; $("#exp-d").textContent = n? `${n}일치 일기를 파일 하나로 저장` : "아직 저장된 일기가 없어요"; }
+  $("#mi-export").onclick=()=>{
+    const data={ app:"gratitude-journal", version:1, exportedAt:new Date().toISOString(), entries:db };
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    const today=new Date(); const stamp=today.getFullYear()+String(today.getMonth()+1).padStart(2,"0")+String(today.getDate()).padStart(2,"0");
+    a.href=url; a.download=`감사일기-백업-${stamp}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    toast("백업 파일을 내보냈어요");
+  };
+  $("#mi-import").onclick=()=>$("#file-import").click();
+  $("#file-import").onchange=(ev)=>{
+    const f=ev.target.files[0]; if(!f)return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      try{
+        const parsed=JSON.parse(rd.result);
+        const incoming=parsed.entries||parsed;
+        if(typeof incoming!=="object") throw 0;
+        const inCount=Object.keys(incoming).length;
+        if(!confirm(`${inCount}일치 일기를 불러올까요?\n같은 날짜는 불러온 내용으로 덮어써요.`)) { ev.target.value=""; return; }
+        Object.keys(incoming).forEach(k=>{ db[k]=incoming[k]; });
+        save(db); closeModal();
+        toast("복구했어요 · "+inCount+"일치");
+        renderBrowse();
+      }catch(e){ alert("백업 파일을 읽을 수 없어요. 올바른 감사일기 백업 파일인지 확인해 주세요."); }
+      ev.target.value="";
+    };
+    rd.readAsText(f);
+  };
+
+  // ── 토스트 ──
+  let toastT;
+  function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1900); }
+
+  // ── 리사이즈 ──
+  let rT;
+  window.addEventListener("resize",()=>{ clearTimeout(rT); rT=setTimeout(()=>{ if($("#view-write").style.display!=="none") fitCanvas(true); },200); });
+
+  // ── 시작 ──
+  fillWriteView();
+
+  // service worker
+  if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
+})();
+</script>
+</body>
+</html>
